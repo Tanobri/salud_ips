@@ -1,28 +1,9 @@
-name: build-and-publish-docker
-
-on:
-  push:
-    branches: ["main"]
-    paths:
-      - "auth/**"
-      - "citas/**"
-      - "notas/**"
-      - "notif/**"
-      - ".github/workflows/deploy.yml"
-  pull_request:
-    branches: ["main"]
-
-permissions:
-  contents: read
-  packages: write   # necesario para publicar en GHCR
-
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [auth, citas, notas, notif]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,7 +11,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # login a GitHub Container Registry (GHCR) sin secretos extra
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -38,16 +18,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Construye y PUBLICA la imagen de cada microservicio
+      # NUEVO: owner en minúsculas para las etiquetas
+      - name: Set lowercase owner
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/salud-${{ matrix.service }}:latest
-            ghcr.io/${{ github.repository_owner }}/salud-${{ matrix.service }}:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:latest
+            ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:${{ github.sha }}
 
-      # (Opcional) salida para verificar
       - name: Image name
-        run: echo "Pushed ghcr.io/${{ github.repository_owner }}/salud-${{ matrix.service }}:latest"
+        run: echo "Pushed ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:latest"
