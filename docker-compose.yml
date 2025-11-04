@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  auth:
+    build: ./auth
+    container_name: auth
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    networks: [ipsnet]
+
+  citas:
+    build: ./citas
+    container_name: citas
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3002:3000"
+    restart: unless-stopped
+    networks: [ipsnet]
+
+  notas:
+    build: ./notas
+    container_name: notas
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3003:3000"
+    restart: unless-stopped
+    networks: [ipsnet]
+
+  notif:
+    build: ./notif
+    container_name: notif
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3004:3000"
+    restart: unless-stopped
+    networks: [ipsnet]
+
+networks:
+  ipsnet:
+    driver: bridge
