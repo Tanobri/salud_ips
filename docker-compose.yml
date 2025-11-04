@@ -7,6 +7,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - POSTGRES_URL=${POSTGRES_URL}
     ports:
       - "3001:3000"
     restart: unless-stopped
@@ -18,6 +20,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - POSTGRES_URL=${POSTGRES_URL}
     ports:
       - "3002:3000"
     restart: unless-stopped
@@ -29,6 +33,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
+      - COSMOS_KEY=${COSMOS_KEY}
+      - COSMOS_DB=${COSMOS_DB}
+      - COSMOS_CONTAINER=${COSMOS_CONTAINER}
     ports:
       - "3003:3000"
     restart: unless-stopped
