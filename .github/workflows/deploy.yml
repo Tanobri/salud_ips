@@ -1,9 +1,28 @@
+name: build-and-publish-docker
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "auth/**"
+      - "citas/**"
+      - "notas/**"
+      - "notif/**"
+      - ".github/workflows/deploy.yml"
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [auth, citas, notas, notif]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,7 +37,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # NUEVO: owner en minúsculas para las etiquetas
+      # owner en minúsculas para GHCR
       - name: Set lowercase owner
         run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
@@ -30,6 +49,3 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:latest
             ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:${{ github.sha }}
-
-      - name: Image name
-        run: echo "Pushed ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:latest"
