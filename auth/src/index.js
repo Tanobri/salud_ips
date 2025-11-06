@@ -1,4 +1,4 @@
-// auth/src/index.js  aaaa
+// auth/src/index.js  aaaaaaaaaa
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
 const jwt = require('jsonwebtoken');
