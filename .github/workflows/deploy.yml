@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth, citas, notas, notif]  # Solo los servicios necesarios
-        acr: [saludips, saludips2]  # Aquí agregamos ambos ACRs
+        service: [auth, citas, notas, notif]  # Servicios a desplegar
+        acr: [saludips, saludips2]  # ACRs
 
     steps:
       - name: 📥 Checkout
@@ -28,6 +28,7 @@ jobs:
       - name: 🔑 Login to ACR
         uses: azure/docker-login@v1
         with:
+          # Selección dinámica de ACR usando 'acr' de la matriz
           login-server: ${{ secrets['ACR_LOGIN_SERVER_' + matrix.acr] }}
           username: ${{ secrets['ACR_USERNAME_' + matrix.acr] }}
           password: ${{ secrets['ACR_PASSWORD_' + matrix.acr] }}
@@ -42,4 +43,3 @@ jobs:
           docker tag  ${{ secrets['ACR_LOGIN_SERVER_' + matrix.acr] }}/${{ matrix.service }}:latest ${{ secrets['ACR_LOGIN_SERVER_' + matrix.acr] }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
           docker push ${{ secrets['ACR_LOGIN_SERVER_' + matrix.acr] }}/${{ matrix.service }}:latest
           docker push ${{ secrets['ACR_LOGIN_SERVER_' + matrix.acr] }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
-
