@@ -9,8 +9,11 @@ on:
       - "main"
 
 jobs:
-  build-saludips:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth, citas, notas, notif]  # Aquí agregamos todas las imágenes que necesitas construir
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
