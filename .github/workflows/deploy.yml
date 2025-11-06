@@ -14,6 +14,7 @@ jobs:
     strategy:
       matrix:
         service: [auth, citas, notas, notif]  # Solo los servicios necesarios
+        acr: [ACRsaludips, ACRsaludips2]  # Aquí agregamos ambos ACRs
 
     steps:
       - name: 📥 Checkout
@@ -27,9 +28,9 @@ jobs:
       - name: 🔑 Login to ACR
         uses: azure/docker-login@v1
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          login-server: ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}
+          username: ${{ secrets['ACR_USERNAME' + matrix.acr] }}
+          password: ${{ secrets['ACR_PASSWORD' + matrix.acr] }}
 
       - name: 🏷️ Set version tag (short sha)
         id: vars
@@ -37,8 +38,9 @@ jobs:
 
       - name: 🏗️ Build & Push ${{ matrix.service }}
         run: |
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker tag  ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
+          docker build -t ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}/${{ matrix.service }}:latest ./${{ matrix.service }}
+          docker tag  ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}/${{ matrix.service }}:latest ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
+          docker push ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}/${{ matrix.service }}:latest
+          docker push ${{ secrets['ACR_LOGIN_SERVER' + matrix.acr] }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
+
 
