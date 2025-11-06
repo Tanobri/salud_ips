@@ -1,44 +1,29 @@
-name: Build and Deploy to Azure
+name: build-and-publish-docker
 
 on:
   push:
     branches:
-      - main
-    paths:
-      - "auth/**"
-      - "citas/**"
-      - "notas/**"
-      - "notif/**"
-      - ".github/workflows/deploy.yml"
+      - "main"
   pull_request:
     branches:
-      - main
-
-permissions:
-  contents: read
-  packages: write
+      - "main"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth, citas, notas, notif]
-        image: [auth, citas, notas, notif]
-        context: ["./auth", "./citas", "./notas", "./notif"]
+        service: [auth, citas, notas, notif]  # Solo los servicios necesarios
 
     steps:
-      # Step 1: Checkout code from the repository
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      # Step 2: Azure login using the Service Principal
       - name: 🔐 Azure Login (Service Principal)
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Step 3: Login to Azure Container Registry (ACR)
       - name: 🔑 Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -46,24 +31,14 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # Step 4: Set version tag using short SHA of the commit
       - name: 🏷️ Set version tag (short sha)
         id: vars
         run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      # Step 5: Build & Push Docker image for each service
       - name: 🏗️ Build & Push ${{ matrix.service }}
         run: |
-          # Build the Docker image and push it to ACR
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest ${{ matrix.context }}
-          docker tag  ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest ./${{ matrix.service }}
+          docker tag  ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ steps.vars.outputs.TAG }}
 
-      # Step 6: Deploy to Azure App Service (optional, for each service)
-      - name: 🚀 Deploy to Azure App Service
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: your-app-name # Replace with your App Service name
-          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          images: ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}
