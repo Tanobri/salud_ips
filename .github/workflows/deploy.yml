@@ -1,8 +1,9 @@
-name: build-and-publish-docker
+name: Build and Deploy to Azure
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
     paths:
       - "auth/**"
       - "citas/**"
@@ -10,7 +11,8 @@ on:
       - "notif/**"
       - ".github/workflows/deploy.yml"
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -22,30 +24,46 @@ jobs:
     strategy:
       matrix:
         service: [auth, citas, notas, notif]
+        image: [auth, citas, notas, notif]
+        context: ["./auth", "./citas", "./notas", "./notif"]
 
     steps:
-      - name: Checkout
+      # Step 1: Checkout code from the repository
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      # Step 2: Azure login using the Service Principal
+      - name: 🔐 Azure Login (Service Principal)
+        uses: azure/login@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # owner en minúsculas para GHCR
-      - name: Set lowercase owner
-        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
+      # Step 3: Login to Azure Container Registry (ACR)
+      - name: 🔑 Login to ACR
+        uses: azure/docker-login@v1
         with:
-          context: ./${{ matrix.service }}
-          push: true
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:latest
-            ghcr.io/${{ env.OWNER_LC }}/salud-${{ matrix.service }}:${{ github.sha }}
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # Step 4: Set version tag using short SHA of the commit
+      - name: 🏷️ Set version tag (short sha)
+        id: vars
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      # Step 5: Build & Push Docker image for each service
+      - name: 🏗️ Build & Push ${{ matrix.service }}
+        run: |
+          # Build the Docker image and push it to ACR
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest ${{ matrix.context }}
+          docker tag  ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}
+
+      # Step 6: Deploy to Azure App Service (optional, for each service)
+      - name: 🚀 Deploy to Azure App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: your-app-name # Replace with your App Service name
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ steps.vars.outputs.TAG }}

@@ -54,6 +54,8 @@ app.get("/citas", { preHandler: requireAuth }, async (req) => {
 const port = Number(process.env.PORT || 3000);
 const host = "0.0.0.0";
 
+
+
 // Inicializa BD y arranca
 db.init()
   .catch((e) => { app.log.error(e); })

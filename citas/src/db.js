@@ -56,6 +56,10 @@ async function listByPaciente(pacienteId) {
   return rows;
 }
 
+
 function hasDb() { return !!pool; }
 
+
 module.exports = { init, createCita, listByPaciente, hasDb };
+
+
