@@ -14,7 +14,7 @@ async function init() {
     connectionString: conn,
     ssl: { rejectUnauthorized: false }, // requerido en Azure PG
   });
-
+hola
   // Crea tabla si no existe (MVP)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS citas (
