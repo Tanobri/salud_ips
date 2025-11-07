@@ -9,5 +9,5 @@ RUN npm ci --omit=dev
 COPY src ./src
 
 ENV NODE_ENV=production
-EXPOSE 80
+EXPOSE 3001
 CMD ["node", "src/index.js"]
