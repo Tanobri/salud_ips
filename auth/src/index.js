@@ -2,7 +2,7 @@
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // <-- usa bcryptjs en toda la app
 
 const { init, getUserByEmail, createUser, pool } = require('./db');
 
@@ -26,36 +26,27 @@ app.get('/health', async () => ({
   db: pool ? 'postgres' : 'none',
 }));
 
-// POST /auth/register
 app.post('/auth/register', async (req, reply) => {
   try {
     const { email, password, rol = 'paciente', nombre = 'Usuario' } = req.body || {};
     if (!email || !password) {
       return reply.code(400).send({ message: 'email y password son obligatorios' });
     }
-
     const user = await createUser({ email, password, rol, nombre });
     const accessToken = signToken(user);
     return reply.code(201).send({ user, accessToken });
   } catch (err) {
-    if (err.code === 'E_DUP_EMAIL') {
-      return reply.code(409).send({ message: 'Email ya registrado' });
-    }
-    if (err.code === 'E_BAD_ROLE') {
-      return reply.code(400).send({ message: 'Rol inválido (use: paciente|medico|admin)' });
-    }
+    if (err.code === 'E_DUP_EMAIL') return reply.code(409).send({ message: 'Email ya registrado' });
+    if (err.code === 'E_BAD_ROLE')  return reply.code(400).send({ message: 'Rol inválido (use: paciente|medico|admin)' });
     req.log.error(err);
     return reply.code(500).send({ message: 'Error registrando usuario' });
   }
 });
 
-// POST /login
 app.post('/login', async (req, reply) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) {
-      return reply.code(400).send({ message: 'email y password son obligatorios' });
-    }
+    if (!email || !password) return reply.code(400).send({ message: 'email y password son obligatorios' });
 
     const user = await getUserByEmail(email);
     if (!user) return reply.code(401).send({ message: 'Credenciales inválidas' });
@@ -72,12 +63,22 @@ app.post('/login', async (req, reply) => {
   }
 });
 
-init()
-  .then(() => app.listen({ port: PORT, host: HOST }))
+// Arranca SIEMPRE el server; init corre en background (no tumba el contenedor)
+app.listen({ port: PORT, host: HOST })
+  .then(async () => {
+    app.log.info(`Auth up on http://${HOST}:${PORT}`);
+    try {
+      await init();
+      app.log.info('DB init done ✅');
+    } catch (e) {
+      app.log.error({ err: e }, 'DB init failed (app sigue arriba)');
+    }
+  })
   .catch((err) => {
     app.log.error(err);
     process.exit(1);
   });
+
 
 
 

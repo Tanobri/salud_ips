@@ -1,23 +1,34 @@
 // auth/src/db.js
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt'); // usas bcryptjs en package.json
+const bcrypt = require('bcryptjs'); // <-- NO 'bcrypt' nativo
 
-// Azure PostgreSQL exige TLS
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false },
-});
+// Soporta ambos nombres por si cambias en Azure
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false }, // Azure PG requiere TLS
+    })
+  : null;
+
+if (pool) {
+  pool.on('error', (err) => {
+    console.error('pg pool error:', err);
+  });
+}
 
 const ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 const ALLOWED_ROLES = ['paciente', 'medico', 'admin'];
 const genUserId = () => 'u' + Date.now();
 
 async function init() {
-  if (!process.env.POSTGRES_URL) {
-    console.warn('[auth] POSTGRES_URL no definido -> sin DB');
+  if (!pool) {
+    console.warn('[auth] Sin conexión a DB (POSTGRES_URL/DATABASE_URL no definido).');
     return false;
   }
 
+  // Crea tabla e índice únicos si no existen (sin DO $$)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -29,17 +40,9 @@ async function init() {
     );
   `);
 
-  //idempotente: crea la constraint única si no existe
+  // Refuerza unicidad por índice (idempotente)
   await pool.query(`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'uq_users_email'
-      ) THEN
-        ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE (email);
-      END IF;
-    END
-    $$;
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email);
   `);
 
   console.log('[auth] PostgreSQL listo ✅');
@@ -47,6 +50,7 @@ async function init() {
 }
 
 async function getUserByEmail(email) {
+  if (!pool) return null;
   const { rows } = await pool.query(
     'SELECT id, email, password_hash, rol, nombre, created_at FROM users WHERE email=$1 LIMIT 1',
     [email]
@@ -55,6 +59,9 @@ async function getUserByEmail(email) {
 }
 
 async function createUser({ email, password, rol = 'paciente', nombre = 'Usuario' }) {
+  if (!pool) {
+    const err = new Error('DB no configurada'); err.code = 'E_NO_DB'; throw err;
+  }
   if (!ALLOWED_ROLES.includes(rol)) {
     const err = new Error('Rol inválido'); err.code = 'E_BAD_ROLE'; throw err;
   }
@@ -78,6 +85,7 @@ async function createUser({ email, password, rol = 'paciente', nombre = 'Usuario
 }
 
 module.exports = { init, getUserByEmail, createUser, pool };
+
 
 
 
