@@ -38,7 +38,7 @@ app.post("/citas/:id/nota", { preHandler: requireAuth }, async (req, reply) => {
   MEM.push(nota); return nota;
 });
 
-// GET /citas/:id/nota hola
+// GET /citas/:id/nota
 app.get("/citas/:id/nota", { preHandler: requireAuth }, async (req) => {
   const { id: citaId } = req.params;
   if (db.hasDb()) return db.listByCita(citaId);
