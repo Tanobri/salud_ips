@@ -1,14 +1,18 @@
 // auth/src/db.js
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs'); // <-- NO 'bcrypt' nativo
+const bcrypt = require('bcryptjs');
 
-// Soporta ambos nombres por si cambias en Azure
 const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 const pool = connectionString
   ? new Pool({
       connectionString,
-      ssl: { rejectUnauthorized: false }, // Azure PG requiere TLS
+      // Azure PG suele requerir TLS; en App Service desactiva verificación de CA
+      ssl: { rejectUnauthorized: false },
+      // ---- TIMEOUTS CLAVE ----
+      connectionTimeoutMillis: 5000, // 5s para abrir conexión
+      idleTimeoutMillis: 10000,
+      max: 5,
     })
   : null;
 
@@ -27,26 +31,24 @@ async function init() {
     console.warn('[auth] Sin conexión a DB (POSTGRES_URL/DATABASE_URL no definido).');
     return false;
   }
-
-  // Crea tabla e índice únicos si no existen (sin DO $$)
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      rol TEXT NOT NULL,
-      nombre TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-  `);
-
-  // Refuerza unicidad por índice (idempotente)
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email);
-  `);
-
-  console.log('[auth] PostgreSQL listo ✅');
-  return true;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        rol TEXT NOT NULL,
+        nombre TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email);`);
+    console.log('[auth] PostgreSQL listo ✅');
+    return true;
+  } catch (e) {
+    console.error('[auth] init() DB error:', e);
+    return false;
+  }
 }
 
 async function getUserByEmail(email) {
@@ -85,6 +87,7 @@ async function createUser({ email, password, rol = 'paciente', nombre = 'Usuario
 }
 
 module.exports = { init, getUserByEmail, createUser, pool };
+
 
 
 
